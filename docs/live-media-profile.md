@@ -49,11 +49,16 @@ It does not reinterpret offset 0 or change the shared BMFF hash engine. Resolvin
 the discrepancy in the specification remains necessary before claiming complete
 conformance.
 
-The emitted exclusion is `/emsg` with the scheme bytes
-`urn:c2pa:verifiable-segment-info` at offset 12. Because the generic BMFF data
-predicate matches a byte prefix, validation additionally requires **every matched
-box to be a valid VSI event**. This rejects longer lookalike schemes, incorrect
-values, and version-1 timing bytes that imitate the prefix. Every VSI event must
+The emitted exclusion is `/emsg` with the 33 scheme bytes
+`urn:c2pa:verifiable-segment-info\0` (including the NUL terminator, per
+[c2pa-org/specs-core #2542](https://github.com/c2pa-org/specs-core/pull/2542))
+at offset 12, so the byte-prefix data predicate matches only the exact scheme;
+an event whose scheme merely starts with the VSI URI is hashed. During the
+transition, validation also accepts the older unterminated 32-byte value. Because
+that value matches as a prefix, validation additionally requires **every matched
+box to be a valid VSI event** (c2pa-org/specs-core #2619). This rejects longer
+lookalike schemes, incorrect values, and version-1 timing bytes that imitate the
+prefix. Every VSI event must
 be fully excluded. Other events, media, and embedded manifest boxes remain hashed.
 The current profile rejects additional exclusion paths and subset exclusions.
 

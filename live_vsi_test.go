@@ -418,3 +418,88 @@ func FuzzLiveVSIEnvelope(f *testing.F) {
 		_, _ = verifyLiveVSI(encoded, key, testLiveManifestID)
 	})
 }
+
+func TestLiveVSIExclusionValueForms(t *testing.T) {
+	ctx := context.Background()
+	k, private, _ := liveKeyFixture(t)
+	sign := func(source []byte, declared []any) ([]byte, error) {
+		return buildLiveVSISegmentWithExclusions(ctx, source, private, k.kid, testLiveManifestID, 1, liveEvent{timescale: 1000, duration: 2000, id: 123}, nil, declared)
+	}
+	verify := func(data []byte) error {
+		event, _ := liveTestEvent(t, data)
+		info, err := verifyLiveVSI(event.payload, k, testLiveManifestID)
+		if err != nil {
+			return err
+		}
+		return verifyLiveVSIHash(ctx, data, info)
+	}
+	_, fragments := unsignedFragmentedSet(1, fragOpts{sidxVersion: 0})
+	source := fragments[0]
+
+	// The signer declares the NUL-terminated scheme (c2pa-org/specs-core#2542).
+	data, err := sign(source, liveVSIExclusions())
+	if err != nil {
+		t.Fatal(err)
+	}
+	event, _ := liveTestEvent(t, data)
+	info, err := verifyLiveVSI(event.payload, k, testLiveManifestID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, exclusions, err := decodeLiveVSIHash(info.bmffHash)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(exclusions) != 1 || len(exclusions[0].data) != 1 || exclusions[0].data[0].offset != 12 ||
+		len(exclusions[0].data[0].value) != 33 || string(exclusions[0].data[0].value) != "urn:c2pa:verifiable-segment-info\x00" {
+		t.Fatalf("signer exclusion = %+v", exclusions)
+	}
+	if err := verify(data); err != nil {
+		t.Fatal(err)
+	}
+
+	// Segments declaring the legacy unterminated value still validate.
+	legacy := liveVSIExclusionsFor(liveVSIScheme)
+	data, err = sign(source, legacy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := verify(data); err != nil {
+		t.Fatalf("legacy exclusion rejected: %v", err)
+	}
+
+	// A longer scheme that only starts with the VSI URI is hashed under the
+	// NUL-terminated value, but the legacy prefix would exclude it (specs-core#2619).
+	lookalike := synthBox("emsg", []byte{0, 0, 0, 0}, []byte(liveVSIScheme+"-extra\x00fseg\x00"), make([]byte, 16), []byte{1})
+	moof := topBox(source, "moof")
+	withLookalike := bytes.Join([][]byte{source[:moof.start], lookalike, source[moof.start:]}, nil)
+	data, err = sign(withLookalike, liveVSIExclusions())
+	if err != nil {
+		t.Fatalf("NUL-terminated exclusion with lookalike: %v", err)
+	}
+	if err := verify(data); err != nil {
+		t.Fatal(err)
+	}
+	_, vsi := liveTestEvent(t, data)
+	var extra *bmffBox
+	for _, b := range parseBMFFBoxes(ctx, data) {
+		if b.typ == "emsg" && b.start != vsi.start {
+			extra = b
+		}
+	}
+	if extra == nil {
+		t.Fatal("lookalike event lost")
+	}
+	tampered := bytes.Clone(data)
+	tampered[extra.end-1] ^= 1
+	if err := verify(tampered); err == nil {
+		t.Fatal("lookalike event is not covered by the media hash")
+	}
+	legacyEx, _ := decodeBMFFExclusions(legacy)
+	if _, err := liveVSIHash(ctx, data, "sha256", legacyEx); err == nil {
+		t.Fatal("legacy exclusion of lookalike event accepted")
+	}
+	if _, err := sign(withLookalike, legacy); err == nil {
+		t.Fatal("signed legacy exclusion over lookalike event")
+	}
+}

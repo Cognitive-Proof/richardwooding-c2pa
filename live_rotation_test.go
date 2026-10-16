@@ -445,4 +445,15 @@ func TestLiveRotationAnnouncementExclusions(t *testing.T) {
 			t.Fatalf("unsafe announcement exclusion accepted: %+v", extra)
 		}
 	}
+	// The legacy unterminated VSI scheme remains accepted during the transition.
+	candidate := *m
+	candidate.assertions = append([]rawAssertion(nil), m.assertions...)
+	for i := range candidate.assertions {
+		if a := &candidate.assertions[i]; a.label == "c2pa.hash.bmff.v3" {
+			a.data = liveCBOR(t, map[string]any{"alg": "sha256", "hash": make([]byte, 32), "exclusions": append(bmffStandardExclusions(), liveVSIExclusionsFor(liveVSIScheme)...)})
+		}
+	}
+	if err := liveAnnouncementBinding(&candidate); err != nil {
+		t.Fatalf("legacy announcement exclusion rejected: %v", err)
+	}
 }

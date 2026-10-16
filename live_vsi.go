@@ -15,6 +15,17 @@ import (
 
 const liveVSIScheme = "urn:c2pa:verifiable-segment-info"
 
+// liveVSISchemeExclusion is the bmffHash exclusion value from
+// c2pa-org/specs-core#2542: the scheme_id_uri including its NUL terminator, so
+// the byte-prefix predicate matches only the exact VSI scheme. Validators still
+// accept the unterminated legacy value during the transition; liveVSIHash then
+// rejects any longer-scheme lookalike that the prefix would also exclude.
+const liveVSISchemeExclusion = liveVSIScheme + "\x00"
+
+func isLiveVSIExclusionValue(v []byte) bool {
+	return string(v) == liveVSISchemeExclusion || string(v) == liveVSIScheme
+}
+
 // These internal primitives authenticate a VSI envelope and its media hash.
 // Key admission, presentation-time validity, sequence continuity and session-wide
 // emsg ID uniqueness belong to the stateful validator.
@@ -134,7 +145,11 @@ func verifyLiveVSI(encoded []byte, key liveSessionKey, manifestID string) (info 
 // version/flags (4), then scheme_id_uri. The pinned spec says offset 0; see
 // docs/live-media-profile.md for the explicit compatibility decision.
 func liveVSIExclusions() []any {
-	return []any{map[string]any{"xpath": "/emsg", "data": []any{map[string]any{"offset": 12, "value": []byte(liveVSIScheme)}}}}
+	return liveVSIExclusionsFor(liveVSISchemeExclusion)
+}
+
+func liveVSIExclusionsFor(value string) []any {
+	return []any{map[string]any{"xpath": "/emsg", "data": []any{map[string]any{"offset": 12, "value": []byte(value)}}}}
 }
 
 func decodeLiveVSIHash(raw []byte) (alg string, digest []byte, exclusions []bmffExclusion, err error) {
@@ -171,7 +186,7 @@ func decodeLiveVSIHash(raw []byte) (alg string, digest []byte, exclusions []bmff
 		}
 		selective := false
 		for _, d := range e.data {
-			if d.offset == 12 && bytes.Equal(d.value, []byte(liveVSIScheme)) {
+			if d.offset == 12 && isLiveVSIExclusionValue(d.value) {
 				selective = true
 			}
 		}
@@ -250,13 +265,18 @@ func buildLiveVSISegment(ctx context.Context, source []byte, private ed25519.Pri
 }
 
 func buildLiveVSISegmentWithReference(ctx context.Context, source []byte, private ed25519.PrivateKey, kid []byte, manifestID string, sequence uint64, event liveEvent, ref *liveManifestReference) ([]byte, error) {
+	return buildLiveVSISegmentWithExclusions(ctx, source, private, kid, manifestID, sequence, event, ref, liveVSIExclusions())
+}
+
+// buildLiveVSISegmentWithExclusions lets tests author the legacy exclusion form.
+func buildLiveVSISegmentWithExclusions(ctx context.Context, source []byte, private ed25519.PrivateKey, kid []byte, manifestID string, sequence uint64, event liveEvent, ref *liveManifestReference, declared []any) ([]byte, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	info := liveVSIInfo{sequence: sequence, manifestID: manifestID, manifestRef: ref}
 	makeEvent := func(digest []byte) ([]byte, error) {
 		var err error
-		info.bmffHash, err = encMode.Marshal(map[string]any{"alg": "sha256", "hash": digest, "exclusions": liveVSIExclusions()})
+		info.bmffHash, err = encMode.Marshal(map[string]any{"alg": "sha256", "hash": digest, "exclusions": declared})
 		if err != nil {
 			return nil, err
 		}
@@ -274,7 +294,7 @@ func buildLiveVSISegmentWithReference(ctx context.Context, source []byte, privat
 	if err != nil {
 		return nil, err
 	}
-	exclusions, _ := decodeBMFFExclusions(liveVSIExclusions())
+	exclusions, _ := decodeBMFFExclusions(declared)
 	digest, err := liveVSIHash(ctx, layout, "sha256", exclusions)
 	if err != nil {
 		return nil, err

@@ -198,7 +198,7 @@ func liveAnnouncementBinding(m *parsedManifest) error {
 				return errors.New("announcement may exclude only C2PA uuid boxes")
 			}
 		case "/emsg":
-			if len(e.data) != 1 || e.data[0].offset != 12 || !bytes.Equal(e.data[0].value, []byte(liveVSIScheme)) {
+			if len(e.data) != 1 || e.data[0].offset != 12 || !isLiveVSIExclusionValue(e.data[0].value) {
 				return errors.New("announcement may exclude only VSI events")
 			}
 		default:
