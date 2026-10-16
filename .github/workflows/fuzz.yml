@@ -57,6 +57,11 @@ jobs:
           - FuzzCorpusValidate
           - FuzzCorpusTimestamp
           - FuzzIdentityAssertion
+          - FuzzLiveSessionKeys
+          - FuzzLiveVSIEnvelope
+          - FuzzLiveVSICarriage
+          - FuzzLiveTiming
+          - FuzzLiveManifestReference
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v7

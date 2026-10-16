@@ -97,6 +97,12 @@ const (
 	StatusIngredientManifestMismatch StatusCode = "ingredient.manifest.mismatch"
 	StatusGeneralError               StatusCode = "general.error"
 
+	// Live Media failures retain the specification's livevideo identifiers.
+	StatusLiveVideoInitInvalid       StatusCode = "livevideo.init.invalid"
+	StatusLiveVideoManifestInvalid   StatusCode = "livevideo.manifest.invalid"
+	StatusLiveVideoSessionKeyInvalid StatusCode = "livevideo.sessionkey.invalid"
+	StatusLiveVideoSegmentInvalid    StatusCode = "livevideo.segment.invalid"
+
 	// CAWG identity assertion failures (CAWG Identity Assertion spec §7.2.2),
 	// recorded at "<manifest label>/<assertion label>". Codes the C2PA core
 	// defines for the signature itself — claimSignature.*, signingCredential.*,
@@ -190,6 +196,10 @@ var statusSeverity = map[StatusCode]Severity{
 	StatusICATimeStampValidated:       SeveritySuccess,
 
 	StatusClaimMissing:                   SeverityFailure,
+	StatusLiveVideoInitInvalid:           SeverityFailure,
+	StatusLiveVideoManifestInvalid:       SeverityFailure,
+	StatusLiveVideoSessionKeyInvalid:     SeverityFailure,
+	StatusLiveVideoSegmentInvalid:        SeverityFailure,
 	StatusClaimRequiredMissing:           SeverityFailure,
 	StatusClaimMultiple:                  SeverityFailure,
 	StatusClaimSignatureMissing:          SeverityFailure,

@@ -1,0 +1,7 @@
+# Archived livesim2 responses and provenance must retain their exact bytes,
+# including Manifest.mpd, even when core.autocrlf is enabled on Windows.
+testdata/live_video/livesim2/* -text
+testdata/live_video/interop/go/* -text
+testdata/live_video/interop/rust/* -text
+# Preserve the Rust-generated PEM's CRLF bytes without whitespace warnings.
+testdata/live_video/interop/rust/root.pem whitespace=cr-at-eol
