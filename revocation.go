@@ -78,6 +78,12 @@ func (v *validator) ocspRevoked(leaf, issuer *x509.Certificate) (revoked, ok boo
 	if err != nil {
 		return false, false
 	}
+	if v.cfg.liveRevocationFresh {
+		now := v.cfg.clock()
+		if resp.ThisUpdate.IsZero() || resp.ThisUpdate.After(now) || resp.NextUpdate.IsZero() || !now.Before(resp.NextUpdate) {
+			return false, false
+		}
+	}
 	switch resp.Status {
 	case ocsp.Good:
 		return false, true
@@ -112,6 +118,12 @@ func (v *validator) crlRevoked(leaf, issuer *x509.Certificate) (revoked, ok bool
 		crl, err := x509.ParseRevocationList(body)
 		if err != nil {
 			continue
+		}
+		if v.cfg.liveRevocationFresh {
+			now := v.cfg.clock()
+			if crl.ThisUpdate.IsZero() || crl.ThisUpdate.After(now) || crl.NextUpdate.IsZero() || !now.Before(crl.NextUpdate) {
+				continue
+			}
 		}
 		if crl.CheckSignatureFrom(issuer) != nil {
 			continue // not issued by this issuer; ignore

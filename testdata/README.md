@@ -1,5 +1,20 @@
 # testdata
 
+## live_video/interop
+
+Signed Rust-to-Go and Go-to-Rust Live Media streams from the pinned experimental
+Rust SDK, with explicit test roots, verification clocks and SHA-256 checksums.
+See [the interoperability provenance](live_video/interop/README.md) and the
+[reproduction harness](../validation/live-media-interop/README.md).
+
+## live_video/livesim2
+
+Unsigned DASH/CMAF responses from the pinned c2pa-rs livesim2 acceptance capture:
+one init, three media segments, an MPD and a real SCTE-35 event. Hash pins and
+native Go tests verify these fixtures offline. See
+[the fixture README](live_video/livesim2/README.md) for provenance, licenses,
+verification commands and the Go test adaptations.
+
 ## c2pa_signed.jpg
 
 A real C2PA-signed JPEG used as the parser fixture. It is `CA.jpg` from the

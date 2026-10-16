@@ -516,6 +516,28 @@ deterministic, and a deliberate difference from c2pa-rs's replace-in-place.
 | RSA ≥ 2048 bits | PS256 |
 | Ed25519 | EdDSA |
 
+## Experimental Live Media
+
+`NewLiveMediaSigner` signs a BMFF/CMAF initialization segment and complete media
+segments using Ed25519 session keys and Verifiable Segment Info (VSI).
+`LiveMediaValidator` authenticates the initialization and checks media signatures,
+hashes, presentation-time key validity and sequence continuity. Both endpoints
+require an explicit media-time origin.
+
+The initial profile supports one track and one `moof`/`mdat` pair per segment.
+See [the Live Media profile and examples](docs/live-media-profile.md) for the public
+APIs, exclusion-offset compatibility decision and current limits. The shared
+profile passes [independent Rust/Go interoperability checks](validation/live-media-interop/README.md)
+against a pinned experimental Rust SDK. `AddSessionKey` schedules overlapping
+keys, and `SignMediaSegmentWithManifest` announces them in an authenticated media
+segment. Receivers admit announcements transactionally. Remote manifest retrieval
+is opt-in with explicit allowed origins, byte/time bounds and digest/trust/binding
+checks. A long-session policy adds constant-memory monotonic event IDs and bounded
+manifest history; authorizing credentials are rechecked during media validation.
+The [release-check report](docs/live-media-release-checks.md) records supported
+versions, executable examples, test/fuzz evidence and remaining interoperability
+and conformance limits.
+
 ## PDF
 
 PDF is the container with the most to say, so it gets worked examples. All three run as

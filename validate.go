@@ -137,15 +137,18 @@ func (r ValidationResult) FirstFailure() *StatusEntry {
 
 // validateConfig holds the resolved options for one Validate call.
 type validateConfig struct {
-	signingTrust       *x509.CertPool
-	timestampTrust     *x509.CertPool
-	identityTrust      *x509.CertPool
-	identityIssuers    map[string]bool // nil: not configured; empty: trust no issuer
-	onlineRevocation   bool
-	clock              func() time.Time
-	maxIngredientDepth int
-	maxScan            int
-	httpClient         *http.Client
+	signingTrust        *x509.CertPool
+	timestampTrust      *x509.CertPool
+	identityTrust       *x509.CertPool
+	identityIssuers     map[string]bool // nil: not configured; empty: trust no issuer
+	onlineRevocation    bool
+	clock               func() time.Time
+	maxIngredientDepth  int
+	maxScan             int
+	httpClient          *http.Client
+	liveRemote          *LiveRemoteManifestPolicy
+	liveSession         LiveSessionPolicy
+	liveRevocationFresh bool
 }
 
 // ValidateOption configures a Validate call. See the With* constructors.
@@ -234,7 +237,8 @@ func WithMaxScan(n int) ValidateOption {
 }
 
 // WithHTTPClient sets the HTTP client used for OCSP/CRL fetches when online
-// revocation is enabled (defaults to a client with a short timeout).
+// revocation is enabled, and for explicitly enabled live remote manifests.
+// It defaults to a client with a short timeout. It does not enable fetching.
 func WithHTTPClient(client *http.Client) ValidateOption {
 	return func(c *validateConfig) { c.httpClient = client }
 }
